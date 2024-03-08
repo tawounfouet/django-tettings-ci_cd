@@ -22,34 +22,35 @@ Dans le reste de la documentation sur le développement local, il est supposé q
 
 #### Créer l'environnement virtuel
 
-- `cd /path/to/Python-OC-Lettings-FR`
-- `python -m venv venv`
+- `cd /django-tettings-ci_cd/`
+- `python3.10 -m venv .venv`
+- `source .venv/bin/activate`
 - `apt-get install python3-venv` (Si l'étape précédente comporte des erreurs avec un paquet non trouvé sur Ubuntu)
 - Activer l'environnement `source venv/bin/activate`
 - Confirmer que la commande `python` exécute l'interpréteur Python dans l'environnement virtuel
 `which python`
-- Confirmer que la version de l'interpréteur Python est la version 3.6 ou supérieure `python --version`
+- Confirmer que la version de l'interpréteur Python est la version 3.6 ou supérieure `python3 --version`
 - Confirmer que la commande `pip` exécute l'exécutable pip dans l'environnement virtuel, `which pip`
 - Pour désactiver l'environnement, `deactivate`
 
 #### Exécuter le site
 
-- `cd /path/to/Python-OC-Lettings-FR`
-- `source venv/bin/activate`
+- `cd /django-tettings-ci_cd/`
+- `source .venv/bin/activate`
 - `pip install --requirement requirements.txt`
-- `python manage.py runserver`
+- `python3 manage.py runserver`
 - Aller sur `http://localhost:8000` dans un navigateur.
 - Confirmer que le site fonctionne et qu'il est possible de naviguer (vous devriez voir plusieurs profils et locations).
 
 #### Linting
 
-- `cd /path/to/Python-OC-Lettings-FR`
-- `source venv/bin/activate`
+- `cd /django-tettings-ci_cd/`
+- `source .venv/bin/activate`
 - `flake8`
 
 #### Tests unitaires
 
-- `cd /path/to/Python-OC-Lettings-FR`
+- `cd /django-tettings-ci_cd/`
 - `source venv/bin/activate`
 - `pytest`
 
@@ -62,6 +63,13 @@ Dans le reste de la documentation sur le développement local, il est supposé q
 - Afficher les colonnes dans le tableau des profils, `pragma table_info(Python-OC-Lettings-FR_profile);`
 - Lancer une requête sur la table des profils, `select user_id, favorite_city from
   Python-OC-Lettings-FR_profile where favorite_city like 'B%';`
+```bash
+sqlite3 oc-lettings-site.sqlite3
+sqlite> .tables
+sqlite> pragma table_info(Python-OC-Lettings-FR_profile);
+sqlite> select user_id, favorite_city from Python-OC-Lettings-FR_profile where favorite_city like 'B%';
+```
+
 - `.quit` pour quitter
 
 #### Panel d'administration
