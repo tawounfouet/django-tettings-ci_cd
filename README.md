@@ -83,3 +83,51 @@ Utilisation de PowerShell, comme ci-dessus sauf :
 
 - Pour activer l'environnement virtuel, `.\venv\Scripts\Activate.ps1` 
 - Remplacer `which <my-command>` par `(Get-Command <my-command>).Path`
+
+
+## Configuration Read the Docs / Sphinx
+
+1. Configuration de l’environnement :
+Installez Sphinx en utilisant la commande pip install sphinx dans le
+répertoire de votre projet.
+```bash
+source .venv/bin/activate
+pip install sphinx
+```
+
+3. Initialisation du projet de documentation :
+- Créez un répertoire doc pour votre projet de documentation ;
+- Accédez au répertoire et exécutez la commande sphinx-quickstart ;
+- Répondez aux questions pour configurer le projet, y compris le thème, le
+format de sortie, etc. Vous pouvez choisir les options par défaut pour
+commencer.
+```bash
+mkdir doc
+cd doc
+sphinx-quickstart
+```
+
+
+Vous devez maintenant compléter votre fichier principal `/django-tettings-ci_cd/doc/source/index.rst` et créer d'autres fichiers sources de documentation. Utilisez le Makefile pour construire la documentation comme ceci :
+   make builder
+où « builder » est l'un des constructeurs disponibles, tel que html, latex, ou linkcheck.
+```bash
+make html
+```
+
+3. Édition de la documentation :
+Dans le répertoire de votre projet et dans le dossier source dans lequel
+vous trouverez un fichier index.rst. C'est le point d'entrée de votre
+documentation ;
+- Éditez ce fichier en utilisant la syntaxe reStructuredText pour ajouter
+votre contenu, sections, titres, etc. ;
+- Vous pouvez créer des fichiers séparés pour les différentes parties de
+votre documentation et les inclure dans le fichier index.rst en utilisant la
+directive `.. include`.
+
+
+4. Personnalisation du thème :
+Si vous souhaitez personnaliser l'apparence de votre documentation,
+vous pouvez modifier le fichier de configuration `conf.py` qui se trouve
+dans le dossier source pour spécifier un thème personnalisé ou ajuster
+les options du thème par défaut.
