@@ -114,3 +114,20 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / "static",]
+
+
+# Sentry configuration
+# https://docs.sentry.io/platforms/python/guides/django/
+# Ensure you have the sentry-sdk installed in your environment
+# pip install sentry-sdk[django]
+# Add the following to your settings.py file to initialize Sentry
+# Make sure to replace the DSN with your actual Sentry DSN
+# File: django-tettings-ci_cd/oc_lettings_site/settings.py
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://5ffdc5d4cb89a23bb85d9e964adfec35@o4505054588108800.ingest.us.sentry.io/4509578449715200",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)
