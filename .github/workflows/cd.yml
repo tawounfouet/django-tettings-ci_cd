@@ -6,6 +6,10 @@ on:
     branches: [main]
     types:
       - completed
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+  # This workflow runs after the CI workflow completes successfully,
 
 jobs:
   build-and-push:
