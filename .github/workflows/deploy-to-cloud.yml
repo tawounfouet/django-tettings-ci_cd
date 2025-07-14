@@ -11,6 +11,10 @@ env:
   PYTHON_VERSION: '3.11'
   DJANGO_SETTINGS_MODULE: oc_lettings_site.settings
 
+  # Variables d'environnement pour les tests
+  SECRET_KEY: 'test-secret-key-for-ci'
+  DEBUG: 'True'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -152,7 +156,7 @@ jobs:
         COMMIT_HASH: ${{ steps.commit.outputs.hash }}
         COMMIT_MESSAGE: ${{ steps.commit.outputs.message }}
         DEPLOY_TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
-        SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
         SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         DEBUG: ${{ secrets.DEBUG }}
       run: |
