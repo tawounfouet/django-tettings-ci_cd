@@ -179,15 +179,15 @@ jobs:
         echo "📝 Commit: $COMMIT_HASH - $COMMIT_MESSAGE"
         echo "⏰ Timestamp: $DEPLOY_TIMESTAMP"
         
-        ssh $SSH_USER@$SSH_HOST bash << 'EOF'
+        ssh $SSH_USER@$SSH_HOST GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' bash << EOF
         set -e
         
         # Variables
-        APP_DIR="/home/$USER/django-lettings-app"
-        REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
+        APP_DIR="/home/\$USER/django-lettings-app"
+        REPO_URL="https://\$GITHUB_TOKEN@github.com/tawounfouet/django-lettings-ci_cd.git"
         
         echo "📂 Setting up application directory..."
-        mkdir -p $APP_DIR
+        mkdir -p \$APP_DIR
         
         # Reset any existing git configuration that might force SSH
         echo "🔧 Resetting git configuration to ensure HTTPS usage..."
@@ -195,25 +195,25 @@ jobs:
         git config --global --unset url."ssh://git@github.com/".insteadOf || true
         
         # Clone ou mise à jour du repository
-        if [ -d "$APP_DIR/.git" ]; then
+        if [ -d "\$APP_DIR/.git" ]; then
           echo "📥 Pulling latest changes..."
-          cd $APP_DIR
-          # Reset remote URL to HTTPS in case it was set to SSH
-          git remote set-url origin $REPO_URL
+          cd \$APP_DIR
+          # Reset remote URL to HTTPS with token in case it was set to SSH
+          git remote set-url origin \$REPO_URL
           git fetch origin
           git reset --hard origin/master
         else
-          echo "📥 Cloning repository via HTTPS..."
-          git clone $REPO_URL $APP_DIR
-          cd $APP_DIR
+          echo "📥 Cloning repository via HTTPS with authentication..."
+          git clone \$REPO_URL \$APP_DIR
+          cd \$APP_DIR
         fi
         
         echo "🐍 Setting up virtual environment..."
-        if [ ! -d "$APP_DIR/venv" ]; then
-          python3 -m venv $APP_DIR/venv
+        if [ ! -d "\$APP_DIR/venv" ]; then
+          python3 -m venv \$APP_DIR/venv
         fi
         
-        source $APP_DIR/venv/bin/activate
+        source \$APP_DIR/venv/bin/activate
         
         echo "📦 Installing/updating dependencies..."
         pip install --upgrade pip
@@ -246,8 +246,8 @@ jobs:
           --bind 0.0.0.0:8000 \
           --workers 3 \
           --timeout 120 \
-          --access-logfile $APP_DIR/access.log \
-          --error-logfile $APP_DIR/error.log \
+          --access-logfile \$APP_DIR/access.log \
+          --error-logfile \$APP_DIR/error.log \
           --daemon
         
         sleep 5
@@ -255,14 +255,14 @@ jobs:
         echo "🔍 Performing health checks..."
         for i in {1..5}; do
           if curl -f http://localhost:8000 > /dev/null 2>&1; then
-            echo "🟢 Health check $i/5 passed - Application is running"
+            echo "🟢 Health check \$i/5 passed - Application is running"
             break
-          elif [ $i -eq 5 ]; then
+          elif [ \$i -eq 5 ]; then
             echo "🔴 Health check failed after 5 attempts"
-            tail -n 20 $APP_DIR/error.log 2>/dev/null || echo "No error logs found"
+            tail -n 20 \$APP_DIR/error.log 2>/dev/null || echo "No error logs found"
             exit 1
           else
-            echo "🟡 Health check $i/5 failed, retrying in 5 seconds..."
+            echo "🟡 Health check \$i/5 failed, retrying in 5 seconds..."
             sleep 5
           fi
         done
