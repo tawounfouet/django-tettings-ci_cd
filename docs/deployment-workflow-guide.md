@@ -124,44 +124,26 @@ ALLOWED_HOSTS='$SSH_HOST,127.0.0.1,localhost'
 
 ## Secrets GitHub Requis
 
-Pour que le workflow fonctionne, configurez ces secrets dans GitHub :
+Pour que le déploiement fonctionne, vous devez configurer les secrets suivants dans votre repository GitHub :
 
-### Secrets obligatoires
+### Secrets Requis
 
-| Secret | Description | Exemple |
-|--------|-------------|---------|
-| `SSH_PRIVATE_KEY` | Clé privée SSH pour connexion serveur | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `SSH_HOST` | Adresse IP ou domaine du serveur | `157.245.79.172` ou `yourdomain.com` |
-| `SSH_USER` | Utilisateur SSH sur le serveur | `ubuntu`, `root`, `deploy` |
-| `DJANGO_SECRET_KEY` | Clé secrète Django | `your-super-secret-key-here` |
+1. **SSH_HOST** - L'adresse IP ou nom d'hôte de votre serveur cloud
+2. **SSH_USER** - Le nom d'utilisateur pour la connexion SSH  
+3. **SSH_PRIVATE_KEY** - La clé privée SSH pour l'authentification
+4. **SECRET_KEY** - La clé secrète Django pour la production
+5. **DEBUG** - Définir à `False` pour la production
+6. **SENTRY_DSN** - URL de configuration Sentry pour le monitoring
+7. **GITHUB_TOKEN** - Token GitHub pour cloner le repository (automatiquement disponible)
 
-### Secrets optionnels
+### Configuration des Secrets
 
-| Secret | Description | Défaut |
-|--------|-------------|--------|
-| `DEBUG` | Mode debug Django | `False` |
-| `SENTRY_DSN` | URL Sentry pour monitoring erreurs | (vide) |
+1. Allez dans votre repository GitHub
+2. Cliquez sur **Settings** > **Secrets and variables** > **Actions**
+3. Cliquez sur **New repository secret** pour chaque secret
+4. Ajoutez les valeurs correspondantes
 
-## Configuration des Secrets
-
-### 1. Dans GitHub Repository
-
-1. Allez dans **Settings** > **Secrets and variables** > **Actions**
-2. Cliquez sur **New repository secret**
-3. Ajoutez chaque secret avec sa valeur
-
-### 2. Génération de la clé SSH
-
-```bash
-# Sur votre machine locale
-ssh-keygen -t ed25519 -C "github-actions-deploy"
-
-# Copiez la clé publique sur le serveur
-ssh-copy-id -i ~/.ssh/id_ed25519.pub user@your-server
-
-# Copiez la clé privée dans le secret GitHub
-cat ~/.ssh/id_ed25519
-```
+**Note :** Le `GITHUB_TOKEN` est automatiquement fourni par GitHub Actions et n'a pas besoin d'être configuré manuellement.
 
 ## Configuration du Serveur
 
