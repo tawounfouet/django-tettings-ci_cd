@@ -178,98 +178,91 @@ jobs:
         echo "📝 Commit: $COMMIT_HASH - $COMMIT_MESSAGE"
         echo "⏰ Timestamp: $DEPLOY_TIMESTAMP"
         
-        ssh $SSH_USER@$SSH_HOST << 'ENDSSH'
-          set -e
-          
-          # Variables d'environnement
-          APP_DIR="/var/www/django-lettings-app"
-          REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
-          
-          echo "📂 Setting up application directory..."
-          sudo mkdir -p $APP_DIR
-          sudo chown $USER:$USER $APP_DIR
-          
-          # Clone ou mise à jour du repository
-          if [ -d "$APP_DIR/.git" ]; then
-            echo "📥 Pulling latest changes..."
-            cd $APP_DIR
-            git fetch origin
-            git reset --hard origin/main 2>/dev/null || git reset --hard origin/master
+        ssh $SSH_USER@$SSH_HOST bash << 'EOF'
+        set -e
+        
+        # Variables
+        APP_DIR="/home/$USER/django-lettings-app"
+        REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
+        
+        echo "📂 Setting up application directory..."
+        mkdir -p $APP_DIR
+        
+        # Clone ou mise à jour du repository
+        if [ -d "$APP_DIR/.git" ]; then
+          echo "📥 Pulling latest changes..."
+          cd $APP_DIR
+          git fetch origin
+          git reset --hard origin/master
+        else
+          echo "📥 Cloning repository..."
+          git clone $REPO_URL $APP_DIR
+          cd $APP_DIR
+        fi
+        
+        echo "🐍 Setting up virtual environment..."
+        if [ ! -d "$APP_DIR/venv" ]; then
+          python3 -m venv $APP_DIR/venv
+        fi
+        
+        source $APP_DIR/venv/bin/activate
+        
+        echo "📦 Installing/updating dependencies..."
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install gunicorn
+        
+        echo "🔧 Setting up environment variables..."
+        cat > .env << 'ENVEOF'
+        SECRET_KEY='${{ secrets.SECRET_KEY }}'
+        DEBUG=${{ secrets.DEBUG }}
+        SENTRY_DSN='${{ secrets.SENTRY_DSN }}'
+        ALLOWED_HOSTS='${{ secrets.SSH_HOST }},127.0.0.1,localhost'
+        ENVEOF
+        
+        echo "🔄 Running database migrations..."
+        python manage.py migrate --noinput
+        
+        echo "📁 Collecting static files..."
+        python manage.py collectstatic --noinput --clear
+        
+        echo "🧹 Cleaning up old files..."
+        find . -name "*.pyc" -delete
+        find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+        
+        echo "🔄 Restarting application services..."
+        pkill -f "gunicorn.*oc_lettings_site" || true
+        
+        echo "🚀 Starting Gunicorn server..."
+        nohup gunicorn oc_lettings_site.wsgi:application \
+          --bind 0.0.0.0:8000 \
+          --workers 3 \
+          --timeout 120 \
+          --access-logfile $APP_DIR/access.log \
+          --error-logfile $APP_DIR/error.log \
+          --daemon
+        
+        sleep 5
+        
+        echo "🔍 Performing health checks..."
+        for i in {1..5}; do
+          if curl -f http://localhost:8000 > /dev/null 2>&1; then
+            echo "🟢 Health check $i/5 passed - Application is running"
+            break
+          elif [ $i -eq 5 ]; then
+            echo "🔴 Health check failed after 5 attempts"
+            tail -n 20 $APP_DIR/error.log 2>/dev/null || echo "No error logs found"
+            exit 1
           else
-            echo "📥 Cloning repository..."
-            git clone $REPO_URL $APP_DIR
-            cd $APP_DIR
-          fi
-          
-          echo "🐍 Setting up virtual environment..."
-          if [ ! -d "$APP_DIR/venv" ]; then
-            python3 -m venv $APP_DIR/venv
-          fi
-          
-          source $APP_DIR/venv/bin/activate
-          
-          echo "📦 Installing/updating dependencies..."
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          
-          echo "🔧 Setting up environment variables..."
-          cat > .env << EOF
-          SECRET_KEY='$SECRET_KEY'
-          DEBUG=$DEBUG
-          SENTRY_DSN='$SENTRY_DSN'
-          ALLOWED_HOSTS='$SSH_HOST,127.0.0.1,localhost'
-          EOF
-          
-          echo "🔄 Running database migrations..."
-          python manage.py migrate --noinput
-          
-          echo "📁 Collecting static files..."
-          python manage.py collectstatic --noinput --clear
-          
-          echo "🧹 Cleaning up old files..."
-          find . -name "*.pyc" -delete
-          find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-          
-          echo "🔄 Restarting application services..."
-          # Gunicorn service restart
-          if sudo systemctl is-active --quiet django-lettings; then
-            sudo systemctl restart django-lettings
-          else
-            echo "⚠️  django-lettings service not found, attempting alternative restart..."
-            pkill -f "gunicorn.*oc_lettings_site" || true
-            nohup gunicorn oc_lettings_site.wsgi:application --bind 0.0.0.0:8000 --workers 3 --daemon
-          fi
-          
-          # Nginx restart
-          if sudo systemctl is-active --quiet nginx; then
-            sudo systemctl reload nginx
-          else
-            echo "⚠️  Nginx service not active"
-          fi
-          
-          echo "✅ Deployment completed successfully!"
-          
-          # Health check avec retry
-          echo "🔍 Performing health checks..."
-          for i in {1..5}; do
+            echo "🟡 Health check $i/5 failed, retrying in 5 seconds..."
             sleep 5
-            if curl -f http://localhost:8000 > /dev/null 2>&1; then
-              echo "🟢 Health check $i/5 passed - Application is running"
-              break
-            elif [ $i -eq 5 ]; then
-              echo "🔴 Health check failed after 5 attempts"
-              # Logs pour debugging
-              echo "📋 Application logs:"
-              tail -n 20 /var/log/django-lettings.log 2>/dev/null || echo "No application logs found"
-              echo "📋 Nginx logs:"
-              sudo tail -n 10 /var/log/nginx/error.log 2>/dev/null || echo "No nginx error logs found"
-              exit 1
-            else
-              echo "🟡 Health check $i/5 failed, retrying..."
-            fi
-          done
-          
-          echo "🌐 Application available at: http://$SSH_HOST"
+          fi
+        done
+        
+        echo "🌐 Application available at: http://${{ secrets.SSH_HOST }}:8000"
+        EOF
+        
+        echo "🎉 Deployment to Cloud completed successfully!"
         ENDSSH
         
         echo "🎉 Deployment to Cloud completed successfully!"

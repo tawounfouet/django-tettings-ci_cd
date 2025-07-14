@@ -27,7 +27,7 @@ class DisableMigrations:
 # Permettre les migrations de Django core (auth, contenttypes, etc.)
 MIGRATION_MODULES = {
     "lettings": None,  # Désactiver migrations problématiques de lettings
-    "profiles": None,  # Désactiver migrations problématiques de profiles  
+    "profiles": None,  # Désactiver migrations problématiques de profiles
     "oc_lettings_site": None,  # Désactiver migrations problématiques de oc_lettings_site
 }
 
