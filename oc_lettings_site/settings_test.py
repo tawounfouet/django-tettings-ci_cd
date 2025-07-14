@@ -23,16 +23,12 @@ class DisableMigrations:
         return None
 
 
-# Utiliser seulement les migrations initiales pour les tests
-# Ignorer les migrations de renommage qui causent des problèmes
+# Désactiver seulement les migrations problématiques de nos apps
+# Permettre les migrations de Django core (auth, contenttypes, etc.)
 MIGRATION_MODULES = {
-    "lettings": None,
-    "profiles": None,
-    "oc_lettings_site": None,
-    "admin": None,
-    "auth": None,
-    "contenttypes": None,
-    "sessions": None,
+    "lettings": None,  # Désactiver migrations problématiques de lettings
+    "profiles": None,  # Désactiver migrations problématiques de profiles  
+    "oc_lettings_site": None,  # Désactiver migrations problématiques de oc_lettings_site
 }
 
 # Configuration spécifique aux tests
