@@ -189,10 +189,17 @@ jobs:
         echo "📂 Setting up application directory..."
         mkdir -p $APP_DIR
         
+        # Reset any existing git configuration that might force SSH
+        echo "🔧 Resetting git configuration to ensure HTTPS usage..."
+        git config --global --unset url."git@github.com:".insteadOf || true
+        git config --global --unset url."ssh://git@github.com/".insteadOf || true
+        
         # Clone ou mise à jour du repository
         if [ -d "$APP_DIR/.git" ]; then
           echo "📥 Pulling latest changes..."
           cd $APP_DIR
+          # Reset remote URL to HTTPS in case it was set to SSH
+          git remote set-url origin $REPO_URL
           git fetch origin
           git reset --hard origin/master
         else
