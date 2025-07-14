@@ -72,6 +72,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install coverage
+        pip install pytest-django six
 
     - name: Run migrations for testing
       run: |
@@ -171,7 +172,7 @@ jobs:
           
           # Variables d'environnement
           APP_DIR="/var/www/django-lettings-app"
-          REPO_URL="https://github.com/YOUR_USERNAME/django-lettings-ci_cd.git"
+          REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
           
           echo "📂 Setting up application directory..."
           sudo mkdir -p $APP_DIR
