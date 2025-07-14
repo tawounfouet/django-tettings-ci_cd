@@ -188,9 +188,16 @@ jobs:
         echo "📂 Setting up application directory..."
         mkdir -p $APP_DIR
         
-        # Configure git to use SSH
-        echo "🔐 Configuring git for SSH access..."
+        # Configure git and SSH for GitHub access
+        echo "🔐 Configuring git and SSH for GitHub access..."
         git config --global url."git@github.com:".insteadOf "https://github.com/"
+        
+        # Add GitHub to known hosts if not already present
+        mkdir -p ~/.ssh
+        if ! grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null; then
+          echo "🔑 Adding GitHub to SSH known hosts..."
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+        fi
         
         # Clone ou mise à jour du repository
         if [ -d "$APP_DIR/.git" ]; then
@@ -265,9 +272,6 @@ jobs:
         
         echo "🌐 Application available at: http://${{ secrets.SSH_HOST }}:8000"
         EOF
-        
-        echo "🎉 Deployment to Cloud completed successfully!"
-        ENDSSH
         
         echo "🎉 Deployment to Cloud completed successfully!"
 
