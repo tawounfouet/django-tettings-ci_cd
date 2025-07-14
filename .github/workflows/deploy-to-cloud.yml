@@ -179,11 +179,12 @@ jobs:
         echo "📝 Commit: $COMMIT_HASH - $COMMIT_MESSAGE"
         echo "⏰ Timestamp: $DEPLOY_TIMESTAMP"
         
-        ssh $SSH_USER@$SSH_HOST GITHUB_TOKEN='${{ secrets.GITHUB_TOKEN }}' bash << EOF
+        ssh $SSH_USER@$SSH_HOST bash << EOF
         set -e
         
         # Variables
         APP_DIR="/home/\$USER/django-lettings-app"
+        GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
         REPO_URL="https://\$GITHUB_TOKEN@github.com/tawounfouet/django-lettings-ci_cd.git"
         
         echo "📂 Setting up application directory..."
