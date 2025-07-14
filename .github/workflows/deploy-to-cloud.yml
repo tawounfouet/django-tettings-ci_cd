@@ -50,6 +50,11 @@ jobs:
   test:
     needs: [build]
     runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: 'django-test-secret-key-very-long-and-secure-for-ci-testing'
+      DEBUG: 'True'
+      ALLOWED_HOSTS: 'localhost,127.0.0.1,testserver'
+      DJANGO_SETTINGS_MODULE: 'oc_lettings_site.settings_test'
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -72,20 +77,25 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install coverage
-        pip install coverage pytest pytest-django pytest-cov six
 
+    - name: Check Django configuration
+      run: |
+        python manage.py check
 
     - name: Run migrations for testing
       run: |
+        # Créer la base de données de test avec les modèles initiaux
         python manage.py migrate --noinput
 
-    - name: Run tests with coverage
+    - name: Collect static files for testing
       run: |
-        # Utilisation de pytest-django configuré dans setup.cfg
-        python -m pytest --cov=. --cov-report=term-missing
-        # Alternative avec manage.py si pytest n'est pas configuré
-        # coverage run --source='.' manage.py test
-        # coverage report --show-missing
+        python manage.py collectstatic --noinput --verbosity 0
+
+    - name: Run Django tests with coverage
+      run: |
+        # Tests Django natifs avec coverage - plus stable et fiable
+        coverage run --source='.' manage.py test --verbosity=2
+        coverage report --show-missing
 
     - name: Generate coverage report
       run: |
