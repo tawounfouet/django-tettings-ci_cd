@@ -1,9 +1,3 @@
-# register your models here
-
 from django.contrib import admin
 
-# from .models import Letting, Profile, Address
-
-# admin.site.register(Address)
-# admin.site.register(Letting)
-# admin.site.register(Profile)
+# No models to register here - models have been moved to separate apps
