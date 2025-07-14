@@ -183,10 +183,14 @@ jobs:
         
         # Variables
         APP_DIR="/home/$USER/django-lettings-app"
-        REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
+        REPO_URL="git@github.com:tawounfouet/django-lettings-ci_cd.git"
         
         echo "📂 Setting up application directory..."
         mkdir -p $APP_DIR
+        
+        # Configure git to use SSH
+        echo "🔐 Configuring git for SSH access..."
+        git config --global url."git@github.com:".insteadOf "https://github.com/"
         
         # Clone ou mise à jour du repository
         if [ -d "$APP_DIR/.git" ]; then
@@ -195,7 +199,7 @@ jobs:
           git fetch origin
           git reset --hard origin/master
         else
-          echo "📥 Cloning repository..."
+          echo "📥 Cloning repository via SSH..."
           git clone $REPO_URL $APP_DIR
           cd $APP_DIR
         fi

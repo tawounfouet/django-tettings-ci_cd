@@ -3,7 +3,7 @@ set -e
 
 # Variables d'environnement
 APP_DIR="/home/$USER/django-lettings-app"
-REPO_URL="https://github.com/tawounfouet/django-lettings-ci_cd.git"
+REPO_URL="git@github.com:tawounfouet/django-lettings-ci_cd.git"
 
 echo "📂 Setting up application directory..."
 mkdir -p $APP_DIR
