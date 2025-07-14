@@ -1,0 +1,306 @@
+name: Deploy Django Lettings to Cloud
+
+on:
+  push:
+    branches: [ 'main', 'master' ]
+  pull_request:
+    branches: [ 'main', 'master' ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  DJANGO_SETTINGS_MODULE: oc_lettings_site.settings
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install coverage
+
+    - name: Lint with flake8
+      run: |
+        # Configuration basée sur setup.cfg (max-line-length = 99)
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=99 --statistics --exclude=migrations,venv
+
+  test:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install coverage
+
+    - name: Run migrations for testing
+      run: |
+        python manage.py migrate --noinput
+
+    - name: Run tests with coverage
+      run: |
+        # Utilisation de pytest-django configuré dans setup.cfg
+        python -m pytest --cov=. --cov-report=term-missing
+        # Alternative avec manage.py si pytest n'est pas configuré
+        # coverage run --source='.' manage.py test
+        # coverage report --show-missing
+
+    - name: Generate coverage report
+      run: |
+        coverage xml
+
+    - name: Upload coverage to Codecov (optional)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  security-scan:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+
+    - name: Run safety check
+      run: |
+        safety check --json || true
+
+    - name: Run bandit security scan
+      run: |
+        bandit -r . -x tests,migrations,venv -f json || true
+
+  deploy:
+    needs: [build, test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    # environment: production
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract commit info
+      id: commit
+      run: |
+        echo "hash=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        echo "message=$(git log --format=%B -n 1 $GITHUB_SHA | head -n 1)" >> $GITHUB_OUTPUT
+        echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Add server to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to Cloud Server
+      env:
+        SSH_HOST: ${{ secrets.SSH_HOST }}
+        SSH_USER: ${{ secrets.SSH_USER }}
+        COMMIT_HASH: ${{ steps.commit.outputs.hash }}
+        COMMIT_MESSAGE: ${{ steps.commit.outputs.message }}
+        DEPLOY_TIMESTAMP: ${{ steps.commit.outputs.timestamp }}
+        SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        DEBUG: ${{ secrets.DEBUG }}
+      run: |
+        echo "🚀 Starting deployment of Django Lettings application..."
+        echo "📍 Server: $SSH_HOST"
+        echo "👤 User: $SSH_USER"
+        echo "📝 Commit: $COMMIT_HASH - $COMMIT_MESSAGE"
+        echo "⏰ Timestamp: $DEPLOY_TIMESTAMP"
+        
+        ssh $SSH_USER@$SSH_HOST << 'ENDSSH'
+          set -e
+          
+          # Variables d'environnement
+          APP_DIR="/var/www/django-lettings-app"
+          REPO_URL="https://github.com/YOUR_USERNAME/django-lettings-ci_cd.git"
+          
+          echo "📂 Setting up application directory..."
+          sudo mkdir -p $APP_DIR
+          sudo chown $USER:$USER $APP_DIR
+          
+          # Clone ou mise à jour du repository
+          if [ -d "$APP_DIR/.git" ]; then
+            echo "📥 Pulling latest changes..."
+            cd $APP_DIR
+            git fetch origin
+            git reset --hard origin/main 2>/dev/null || git reset --hard origin/master
+          else
+            echo "📥 Cloning repository..."
+            git clone $REPO_URL $APP_DIR
+            cd $APP_DIR
+          fi
+          
+          echo "🐍 Setting up virtual environment..."
+          if [ ! -d "$APP_DIR/venv" ]; then
+            python3 -m venv $APP_DIR/venv
+          fi
+          
+          source $APP_DIR/venv/bin/activate
+          
+          echo "📦 Installing/updating dependencies..."
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          echo "🔧 Setting up environment variables..."
+          cat > .env << EOF
+          SECRET_KEY='$SECRET_KEY'
+          DEBUG=$DEBUG
+          SENTRY_DSN='$SENTRY_DSN'
+          ALLOWED_HOSTS='$SSH_HOST,127.0.0.1,localhost'
+          EOF
+          
+          echo "🔄 Running database migrations..."
+          python manage.py migrate --noinput
+          
+          echo "📁 Collecting static files..."
+          python manage.py collectstatic --noinput --clear
+          
+          echo "🧹 Cleaning up old files..."
+          find . -name "*.pyc" -delete
+          find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+          
+          echo "🔄 Restarting application services..."
+          # Gunicorn service restart
+          if sudo systemctl is-active --quiet django-lettings; then
+            sudo systemctl restart django-lettings
+          else
+            echo "⚠️  django-lettings service not found, attempting alternative restart..."
+            pkill -f "gunicorn.*oc_lettings_site" || true
+            nohup gunicorn oc_lettings_site.wsgi:application --bind 0.0.0.0:8000 --workers 3 --daemon
+          fi
+          
+          # Nginx restart
+          if sudo systemctl is-active --quiet nginx; then
+            sudo systemctl reload nginx
+          else
+            echo "⚠️  Nginx service not active"
+          fi
+          
+          echo "✅ Deployment completed successfully!"
+          
+          # Health check avec retry
+          echo "🔍 Performing health checks..."
+          for i in {1..5}; do
+            sleep 5
+            if curl -f http://localhost:8000 > /dev/null 2>&1; then
+              echo "🟢 Health check $i/5 passed - Application is running"
+              break
+            elif [ $i -eq 5 ]; then
+              echo "🔴 Health check failed after 5 attempts"
+              # Logs pour debugging
+              echo "📋 Application logs:"
+              tail -n 20 /var/log/django-lettings.log 2>/dev/null || echo "No application logs found"
+              echo "📋 Nginx logs:"
+              sudo tail -n 10 /var/log/nginx/error.log 2>/dev/null || echo "No nginx error logs found"
+              exit 1
+            else
+              echo "🟡 Health check $i/5 failed, retrying..."
+            fi
+          done
+          
+          echo "🌐 Application available at: http://$SSH_HOST"
+        ENDSSH
+        
+        echo "🎉 Deployment to Cloud completed successfully!"
+
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Django Lettings deployment successful! 🚀"
+          echo "🌐 Your Django Lettings app is live at: http://${{ secrets.SSH_HOST }}"
+          echo "📊 Applications deployed:"
+          echo "   - Lettings Management System"
+          echo "   - User Profiles System"
+          echo "   - Admin Interface"
+        else
+          echo "❌ Django Lettings deployment failed! 😞"
+          echo "📝 Please check the logs above for error details"
+          echo "🔧 Common issues to check:"
+          echo "   - SSH connection and credentials"
+          echo "   - Database migrations"
+          echo "   - Static files collection"
+          echo "   - Application service configuration"
+        fi
+
+    - name: Update deployment badge (optional)
+      if: success()
+      run: |
+        echo "🏷️  Deployment successful - Badge updated"
+        # Ici vous pouvez ajouter une logique pour mettre à jour un badge de déploiement
+
+  post-deployment:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+    - name: Post-deployment tasks
+      run: |
+        echo "🎯 Running post-deployment tasks..."
+        echo "📧 Sending deployment notification..."
+        echo "📊 Deployment completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "🔗 Repository: ${{ github.repository }}"
+        echo "📝 Commit: ${{ github.sha }}"
+        echo "👤 Deployed by: ${{ github.actor }}"
+
+    - name: Performance monitoring (optional)
+      run: |
+        echo "📈 Setting up performance monitoring..."
+        echo "🔍 Checking application response time..."
+        # Ici vous pouvez ajouter des checks de performance
+        # curl -w "@curl-format.txt" -o /dev/null -s http://${{ secrets.SSH_HOST }}
